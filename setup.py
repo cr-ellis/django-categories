@@ -1,5 +1,5 @@
 from setuptools import setup, find_packages
-import categories
+#import categories
 import os
 
 try:
@@ -14,7 +14,8 @@ except (IOError, OSError):
 
 setup(
     name='django-categories',
-    version=categories.get_version(),
+    #version=categories.get_version(),
+    version='1.1.4',
     description='A way to handle one or more hierarchical category trees in django.',
     long_description=long_description,
     author='Corey Oordt',
