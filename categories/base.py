@@ -38,7 +38,7 @@ class CategoryBase(MPTTModel):
         null=True,
         related_name="children",
         verbose_name='Parent')
-    name = models.CharField(max_length=100)
+    name = models.CharField(max_length=255)
     slug = models.SlugField()
     active = models.BooleanField(default=True)
 
