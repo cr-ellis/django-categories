@@ -6,12 +6,13 @@ with customizable metadata and its own name space.
 from django.contrib import admin
 from django.db import models
 from django import forms
-from django.template.defaultfilters import slugify
 from django.utils.encoding import force_unicode
+from django.utils.translation import ugettext_lazy as _
 
 from mptt.models import MPTTModel
 from mptt.fields import TreeForeignKey
 from mptt.managers import TreeManager
+from slugify import slugify
 
 from .editor.tree_editor import TreeEditor
 from .settings import ALLOW_SLUG_CHANGE, SLUG_TRANSLITERATOR
@@ -25,7 +26,7 @@ class CategoryManager(models.Manager):
         """
         Only categories that are active
         """
-        return self.get_query_set().filter(active=True)
+        return self.get_queryset().filter(active=True)
 
 
 class CategoryBase(MPTTModel):
@@ -36,11 +37,11 @@ class CategoryBase(MPTTModel):
     parent = TreeForeignKey('self',
         blank=True,
         null=True,
-        related_name="children",
-        verbose_name='Parent')
-    name = models.CharField(max_length=255)
-    slug = models.SlugField()
-    active = models.BooleanField(default=True)
+        related_name='children',
+        verbose_name=_('parent'))
+    name = models.CharField(max_length=255, verbose_name=_('name'))
+    slug = models.SlugField(verbose_name=_('slug'))
+    active = models.BooleanField(default=True, verbose_name=_('active'))
 
     objects = CategoryManager()
     tree = TreeManager()
@@ -77,8 +78,9 @@ class CategoryBase(MPTTModel):
 
 class CategoryBaseAdminForm(forms.ModelForm):
     def clean_slug(self):
-        if self.instance is None or not ALLOW_SLUG_CHANGE:
-            self.cleaned_data['slug'] = slugify(self.cleaned_data['name'])
+        if not self.cleaned_data.get('slug', None):
+            if self.instance is None or not ALLOW_SLUG_CHANGE:
+                self.cleaned_data['slug'] = slugify(SLUG_TRANSLITERATOR(self.cleaned_data['name']))
         return self.cleaned_data['slug'][:50]
 
     def clean(self):
@@ -100,8 +102,8 @@ class CategoryBaseAdminForm(forms.ModelForm):
                                 **kwargs).values('id', 'slug'
                                 ) if c['id'] != self.instance.id]
         if self.cleaned_data['slug'] in this_level_slugs:
-            raise forms.ValidationError("The slug must be unique among "
-                                        "the items at its level.")
+            raise forms.ValidationError(_('The slug must be unique among '
+                                          'the items at its level.'))
 
         # Validate Category Parent
         # Make sure the category doesn't set itself or any of its children as
@@ -110,11 +112,11 @@ class CategoryBaseAdminForm(forms.ModelForm):
         if self.cleaned_data.get('parent', None) is None or self.instance.id is None:
             return self.cleaned_data
         elif self.cleaned_data['parent'].id == self.instance.id:
-            raise forms.ValidationError("You can't set the parent of the "
-                                        "item to itself.")
+            raise forms.ValidationError(_("You can't set the parent of the "
+                                          "item to itself."))
         elif self.cleaned_data['parent'].id in decendant_ids:
-            raise forms.ValidationError("You can't set the parent of the "
-                                        "item to a descendant.")
+            raise forms.ValidationError(_("You can't set the parent of the "
+                                          "item to a descendant."))
         return self.cleaned_data
 
 
@@ -144,7 +146,7 @@ class CategoryBaseAdmin(TreeEditor, admin.ModelAdmin):
                 item.active = False
                 item.save()
                 item.children.all().update(active=False)
-    deactivate.short_description = "Deactivate selected categories and their children"
+    deactivate.short_description = _('Deactivate selected categories and their children')
 
     def activate(self, request, queryset):
         """
@@ -157,4 +159,4 @@ class CategoryBaseAdmin(TreeEditor, admin.ModelAdmin):
             item.active = True
             item.save()
             item.children.all().update(active=True)
-    activate.short_description = "Activate selected categories and their children"
+    activate.short_description = _('Activate selected categories and their children')

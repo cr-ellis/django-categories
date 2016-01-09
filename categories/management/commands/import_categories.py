@@ -1,6 +1,7 @@
 from django.core.management.base import BaseCommand, CommandError
-from django.template.defaultfilters import slugify
 from django.db import transaction
+
+from slugify import slugify
 
 from categories.models import Category
 from categories.settings import SLUG_TRANSLITERATOR
@@ -26,7 +27,7 @@ class Command(BaseCommand):
             else:
                 return ' ' * indent_amt
 
-    @transaction.commit_on_success
+    @transaction.atomic
     def make_category(self, string, parent=None, order=1):
         """
         Make and save a category object from a string

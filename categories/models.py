@@ -2,7 +2,10 @@ from django.core.urlresolvers import reverse
 from django.db import models
 from django.utils.encoding import force_unicode
 from django.contrib.contenttypes.models import ContentType
-from django.contrib.contenttypes import generic
+try:
+    from django.contrib.contenttypes.fields import GenericForeignKey
+except ImportError:
+    from django.contrib.contenttypes.generic import GenericForeignKey
 from django.core.files.storage import get_storage_class
 
 from django.utils.translation import ugettext_lazy as _
@@ -51,9 +54,14 @@ class Category(CategoryBase):
 
     def get_absolute_url(self):
         """Return a path"""
+        from django.core.urlresolvers import NoReverseMatch
+
         if self.alternate_url:
             return self.alternate_url
-        prefix = reverse('categories_tree_list')
+        try:
+            prefix = reverse('categories_tree_list')
+        except NoReverseMatch:
+            prefix = '/'
         ancestors = list(self.get_ancestors()) + [self, ]
         return prefix + '/'.join([force_unicode(i.slug) for i in ancestors]) + '/'
 
@@ -88,7 +96,8 @@ class Category(CategoryBase):
         super(Category, self).save(*args, **kwargs)
 
     class Meta(CategoryBase.Meta):
-        verbose_name_plural = 'categories'
+        verbose_name = _('category')
+        verbose_name_plural = _('categories')
 
     class MPTTMeta:
         order_insertion_by = ('order', 'name')
@@ -105,25 +114,25 @@ class CategoryRelationManager(models.Manager):
         """
         Get all the items of the given content type related to this item.
         """
-        qs = self.get_query_set()
+        qs = self.get_queryset()
         return qs.filter(content_type__name=content_type)
 
     def get_relation_type(self, relation_type):
         """
         Get all the items of the given relationship type related to this item.
         """
-        qs = self.get_query_set()
+        qs = self.get_queryset()
         return qs.filter(relation_type=relation_type)
 
 
 class CategoryRelation(models.Model):
     """Related category item"""
-    category = models.ForeignKey(Category)
+    category = models.ForeignKey(Category, verbose_name=_('category'))
     content_type = models.ForeignKey(
-        ContentType, limit_choices_to=CATEGORY_RELATION_LIMITS)
-    object_id = models.PositiveIntegerField()
-    content_object = generic.GenericForeignKey('content_type', 'object_id')
-    relation_type = models.CharField(_("Relation Type"),
+        ContentType, limit_choices_to=CATEGORY_RELATION_LIMITS, verbose_name=_('content type'))
+    object_id = models.PositiveIntegerField(verbose_name=_('object id'))
+    content_object = GenericForeignKey('content_type', 'object_id')
+    relation_type = models.CharField(verbose_name=_('relation type'),
         max_length="200",
         blank=True,
         null=True,
